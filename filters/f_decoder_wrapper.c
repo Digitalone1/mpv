@@ -96,6 +96,7 @@ struct dec_wrapper_opts {
     int aspect_method;
     double fps_override;
     bool correct_pts;
+    double skip_audio_pts_correction;
     int video_rotate;
     char *audio_decoders;
     char *video_decoders;
@@ -112,6 +113,7 @@ static int decoder_list_help(struct mp_log *log, const m_option_t *opt,
 const struct m_sub_options dec_wrapper_conf = {
     .opts = (const struct m_option[]){
         {"correct-pts", OPT_BOOL(correct_pts)},
+        {"skip-audio-pts-correction", OPT_DOUBLE(skip_audio_pts_correction), M_RANGE(0, DBL_MAX)},
         {"container-fps-override", OPT_DOUBLE(fps_override), M_RANGE(0, DBL_MAX)},
         {"ad", OPT_STRING(audio_decoders),
             .help = decoder_list_help},
@@ -137,6 +139,7 @@ const struct m_sub_options dec_wrapper_conf = {
     .size = sizeof(struct dec_wrapper_opts),
     .defaults = &(const struct dec_wrapper_opts){
         .correct_pts = true,
+        .skip_audio_pts_correction = 0.0,
         .movie_aspect = -1.,
         .aspect_method = 2,
         .video_reverse_size = 1 * 1024 * 1024 * 1024,
@@ -778,6 +781,13 @@ static void correct_audio_pts(struct priv *p, struct mp_aframe *aframe)
             MP_STATS(p, "value %f audio-pts-err", p->pts - frame_pts);
 
         double diff = fabs(p->pts - frame_pts);
+
+        // If skip-audio-pts-correction threshold is set and diff is greater,
+        // reset the diff to 0 in order to skip the audio PTS correction.
+        if (p->opts->skip_audio_pts_correction != 0.0 &&
+            diff > p->opts->skip_audio_pts_correction) {
+            diff = 0.0;
+        }
 
         // Attempt to detect jumps in PTS. Even for the lowest sample rates and
         // with worst container rounded timestamp, this should be a margin more
