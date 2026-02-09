@@ -627,7 +627,8 @@ static bool draw_frame(struct vo *vo, struct vo_frame *frame)
         wl_surface_damage_buffer(wl->video_surface, 0, 0, 1, 1);
     }
 
-    if (wl->color_surface && (!wl->image_description_processed || p->vo_is_waiting)) {
+    if (wl->color_surface && !p->force_window &&
+        (!wl->image_description_processed || p->vo_is_waiting)) {
         vo_wait_on_vo(vo, !wl->image_description_processed);
         p->vo_is_waiting = !wl->image_description_processed;
     }
